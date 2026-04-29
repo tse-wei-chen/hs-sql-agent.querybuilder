@@ -526,7 +526,8 @@ namespace SqlKata.Compilers
             else if (column is AggregatedColumn aggregatedColumn)
             {
                 string agg = aggregatedColumn.Aggregate.ToUpperInvariant();
-                var (col, innerAlias) = SplitAlias(CompileColumn(ctx, aggregatedColumn.Column));
+                var compiledColumn = CompileColumn(ctx, aggregatedColumn.Column);
+                var (col, innerAlias) = SplitAlias(compiledColumn);
                 string filterCondition = CompileFilterConditions(ctx, aggregatedColumn);
 
                 if (string.IsNullOrEmpty(filterCondition))
@@ -542,9 +543,13 @@ namespace SqlKata.Compilers
                     sql = $"{agg}(CASE WHEN {filterCondition} THEN {col} END)";
                 }
 
-                if (string.IsNullOrEmpty(column.Alias) && !string.IsNullOrEmpty(innerAlias))
+                if (string.IsNullOrEmpty(column.Alias) && !string.IsNullOrEmpty(aggregatedColumn.Column.Alias))
                 {
-                    column.Alias = innerAlias;
+                    column.Alias = aggregatedColumn.Column.Alias;
+                }
+                else if (string.IsNullOrEmpty(column.Alias) && !string.IsNullOrEmpty(innerAlias))
+                {
+                    column.Alias = UnwrapValue(innerAlias);
                 }
             }
             else if (column is ArithmeticColumn arithmetic)
@@ -1031,6 +1036,24 @@ namespace SqlKata.Compilers
             if (string.IsNullOrWhiteSpace(opening) && string.IsNullOrWhiteSpace(closing)) return value;
 
             return opening + value.Replace(closing, closing + closing) + closing;
+        }
+
+        public virtual string UnwrapValue(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return value;
+
+            var opening = this.OpeningIdentifier;
+            var closing = this.ClosingIdentifier;
+
+            if (string.IsNullOrWhiteSpace(opening) && string.IsNullOrWhiteSpace(closing)) return value;
+
+            if (value.StartsWith(opening) && value.EndsWith(closing))
+            {
+                value = value.Substring(opening.Length, value.Length - opening.Length - closing.Length);
+                return value.Replace(closing + closing, closing);
+            }
+
+            return value;
         }
 
         /// <summary>

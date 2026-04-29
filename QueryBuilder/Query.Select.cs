@@ -6,6 +6,10 @@ namespace SqlKata
 {
     public partial class Query
     {
+        public Query Select()
+        {
+            return Select("*");
+        }
 
         public Query Select(params string[] columns)
         {
@@ -75,7 +79,8 @@ namespace SqlKata
 
             AddComponent("select", new QueryColumn
             {
-                Query = query.As(alias),
+                Query = query,
+                Alias = alias,
             });
 
             return this;
