@@ -511,6 +511,7 @@ namespace SqlKata.Compilers
         public virtual string CompileColumn(SqlResult ctx, AbstractColumn column)
         {
             string sql;
+            string finalAlias = column.Alias;
 
             if (column is RawColumn raw)
             {
@@ -543,13 +544,13 @@ namespace SqlKata.Compilers
                     sql = $"{agg}(CASE WHEN {filterCondition} THEN {col} END)";
                 }
 
-                if (string.IsNullOrEmpty(column.Alias) && !string.IsNullOrEmpty(aggregatedColumn.Column.Alias))
+                if (string.IsNullOrEmpty(finalAlias) && !string.IsNullOrEmpty(aggregatedColumn.Column.Alias))
                 {
-                    column.Alias = aggregatedColumn.Column.Alias;
+                    finalAlias = aggregatedColumn.Column.Alias;
                 }
-                else if (string.IsNullOrEmpty(column.Alias) && !string.IsNullOrEmpty(innerAlias))
+                else if (string.IsNullOrEmpty(finalAlias) && !string.IsNullOrEmpty(innerAlias))
                 {
-                    column.Alias = UnwrapValue(innerAlias);
+                    finalAlias = UnwrapValue(innerAlias);
                 }
             }
             else if (column is ArithmeticColumn arithmetic)
@@ -570,16 +571,17 @@ namespace SqlKata.Compilers
             }
             else
             {
-                sql = Wrap((column as Column).Name);
+                var (main, alias) = SplitAlias(Wrap((column as Column).Name));
+                sql = main;
+                if (string.IsNullOrEmpty(finalAlias) && !string.IsNullOrEmpty(alias))
+                {
+                    finalAlias = UnwrapValue(alias);
+                }
             }
 
-            if (!string.IsNullOrEmpty(column.Alias))
+            if (!string.IsNullOrEmpty(finalAlias))
             {
-                var (main, currentAlias) = SplitAlias(sql);
-                if (string.IsNullOrEmpty(currentAlias))
-                {
-                    sql = main + $" {ColumnAsKeyword}{WrapValue(column.Alias)}";
-                }
+                sql += $" {ColumnAsKeyword}{WrapValue(finalAlias)}";
             }
 
             return sql;
