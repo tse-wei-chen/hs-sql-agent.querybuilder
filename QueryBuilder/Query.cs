@@ -343,6 +343,12 @@ namespace SqlKata
             return this;
         }
 
+        public Query GroupBy(AbstractColumn column)
+        {
+            AddComponent("group", column);
+            return this;
+        }
+
         public Query GroupByRaw(string expression, params object[] bindings)
         {
             AddComponent("group", new RawColumn

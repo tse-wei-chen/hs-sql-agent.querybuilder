@@ -60,6 +60,24 @@ namespace SqlKata
         }
     }
 
+    public class FunctionColumn : AbstractColumn
+    {
+        public string Name { get; set; }
+        public List<AbstractColumn> Arguments { get; set; } = [];
+
+        public override AbstractClause Clone()
+        {
+            return new FunctionColumn
+            {
+                Engine = Engine,
+                Name = Name,
+                Arguments = [.. Arguments.Select(x => x.Clone() as AbstractColumn)],
+                Alias = Alias,
+                Component = Component,
+            };
+        }
+    }
+
     public class RawColumn : AbstractColumn
     {
         /// <summary>

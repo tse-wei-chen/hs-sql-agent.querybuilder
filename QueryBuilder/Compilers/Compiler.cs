@@ -524,6 +524,17 @@ namespace SqlKata.Compilers
                 ctx.Bindings.AddRange(subCtx.Bindings);
                 sql = "(" + subCtx.RawSql + ")";
             }
+            else if (column is FunctionColumn functionColumn)
+            {
+                var args = functionColumn.Arguments.Select(argument =>
+                {
+                    var compiledArgument = CompileColumn(ctx, argument);
+                    var (value, _) = SplitAlias(compiledArgument);
+                    return value;
+                });
+
+                sql = $"{functionColumn.Name}({string.Join(", ", args)})";
+            }
             else if (column is AggregatedColumn aggregatedColumn)
             {
                 string agg = aggregatedColumn.Aggregate.ToUpperInvariant();

@@ -277,6 +277,55 @@ namespace SqlKata.Tests
         }
 
         [Fact]
+        public void SelectFunctionColumn_UsesBindingsAndWrappedIdentifiers()
+        {
+            var query = new Query("orders")
+                .Select(new FunctionColumn
+                {
+                    Name = "DATE_TRUNC",
+                    Arguments =
+                    [
+                        new NumberColumn { Value = "quarter" },
+                        new Column { Name = "order_date" }
+                    ],
+                    Alias = "quarter_start"
+                });
+
+            var result = Compilers.CompileFor(EngineCodes.PostgreSql, query);
+
+            Assert.Equal("SELECT DATE_TRUNC('quarter', \"order_date\") AS \"quarter_start\" FROM \"orders\"", result.ToString());
+        }
+
+        [Fact]
+        public void GroupByFunctionColumn_UsesBindingsAndWrappedIdentifiers()
+        {
+            var query = new Query("orders")
+                .Select(new FunctionColumn
+                {
+                    Name = "DATE_TRUNC",
+                    Arguments =
+                    [
+                        new NumberColumn { Value = "quarter" },
+                        new Column { Name = "order_date" }
+                    ],
+                    Alias = "quarter_start"
+                })
+                .GroupBy(new FunctionColumn
+                {
+                    Name = "DATE_TRUNC",
+                    Arguments =
+                    [
+                        new NumberColumn { Value = "quarter" },
+                        new Column { Name = "order_date" }
+                    ]
+                });
+
+            var result = Compilers.CompileFor(EngineCodes.PostgreSql, query);
+
+            Assert.Equal("SELECT DATE_TRUNC('quarter', \"order_date\") AS \"quarter_start\" FROM \"orders\" GROUP BY DATE_TRUNC('quarter', \"order_date\")", result.ToString());
+        }
+
+        [Fact]
         public void MultipleUnion()
         {
             var laptops = new Query("Laptops");
