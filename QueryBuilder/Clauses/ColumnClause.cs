@@ -64,6 +64,10 @@ namespace SqlKata
     {
         public string Name { get; set; }
         public List<AbstractColumn> Arguments { get; set; } = [];
+        public bool IsDistinct { get; set; }
+        public Query FilterQuery { get; set; }
+        public List<AbstractColumn> OverPartitionBy { get; set; }
+        public List<(AbstractColumn Column, string Direction)> OverOrderBy { get; set; }
 
         public override AbstractClause Clone()
         {
@@ -72,6 +76,10 @@ namespace SqlKata
                 Engine = Engine,
                 Name = Name,
                 Arguments = [.. Arguments.Select(x => x.Clone() as AbstractColumn)],
+                IsDistinct = IsDistinct,
+                FilterQuery = FilterQuery?.Clone(),
+                OverPartitionBy = OverPartitionBy?.Select(x => x.Clone() as AbstractColumn).ToList(),
+                OverOrderBy = OverOrderBy?.Select(x => (x.Column.Clone() as AbstractColumn, x.Direction)).ToList(),
                 Alias = Alias,
                 Component = Component,
             };

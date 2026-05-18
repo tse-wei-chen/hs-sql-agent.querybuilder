@@ -533,7 +533,61 @@ namespace SqlKata.Compilers
                     return value;
                 });
 
-                sql = $"{functionColumn.Name}({string.Join(", ", args)})";
+                var distinct = functionColumn.IsDistinct ? "DISTINCT " : "";
+                sql = $"{functionColumn.Name}({distinct}{string.Join(", ", args)})";
+
+                if (functionColumn.FilterQuery != null)
+                {
+                    var filterCtx = CompileSelectQuery(functionColumn.FilterQuery);
+                    var filterSql = filterCtx.RawSql;
+
+                    // Extract WHERE clause from the compiled filter query
+                    var whereIdx = filterSql.IndexOf("WHERE", StringComparison.OrdinalIgnoreCase);
+                    if (whereIdx >= 0)
+                    {
+                        var filterCondition = filterSql.Substring(whereIdx + 5).Trim();
+                        if (SupportsFilterClause)
+                        {
+                            sql += $" FILTER (WHERE {filterCondition})";
+                        }
+                        else
+                        {
+                            sql = $"{functionColumn.Name}(CASE WHEN {filterCondition} THEN {string.Join(", ", args)} END)";
+                        }
+                        ctx.Bindings.AddRange(filterCtx.Bindings);
+                    }
+                }
+
+                if (functionColumn.OverPartitionBy?.Count > 0 || functionColumn.OverOrderBy?.Count > 0)
+                {
+                    var overParts = new List<string>();
+
+                    if (functionColumn.OverPartitionBy?.Count > 0)
+                    {
+                        var partitions = functionColumn.OverPartitionBy
+                            .Select(p => CompileColumn(ctx, p))
+                            .Select(c => { var (v, _) = SplitAlias(c); return v; });
+                        overParts.Add($"PARTITION BY {string.Join(", ", partitions)}");
+                    }
+
+                    if (functionColumn.OverOrderBy?.Count > 0)
+                    {
+                        var orders = functionColumn.OverOrderBy
+                            .Select(o =>
+                            {
+                                var (col, _) = SplitAlias(CompileColumn(ctx, o.Column));
+                                var dir = o.Direction?.Equals("desc", StringComparison.OrdinalIgnoreCase) == true ? " DESC" : " ASC";
+                                return col + dir;
+                            });
+                        var orderByStr = $"ORDER BY {string.Join(", ", orders)}";
+
+                        // Strip leading ORDER BY from the first column if it wraps an OrderBy
+                        // HACK: SqlKata.OrderBy adds "ORDER BY" prefix, strip it here
+                        overParts.Add(orderByStr);
+                    }
+
+                    sql += $" OVER ({string.Join(" ", overParts)})";
+                }
             }
             else if (column is AggregatedColumn aggregatedColumn)
             {
