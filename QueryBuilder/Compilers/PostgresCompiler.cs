@@ -13,6 +13,28 @@ namespace SqlKata.Compilers
         public override string EngineCode { get; } = EngineCodes.PostgreSql;
         public override bool SupportsFilterClause { get; set; } = true;
 
+        public override string CompileColumn(SqlResult ctx, AbstractColumn column)
+        {
+            if (column is FunctionColumn functionColumn
+                && string.Equals(functionColumn.Name, "ROUND", StringComparison.OrdinalIgnoreCase)
+                && functionColumn.Arguments.Count == 2)
+            {
+                var value = CompileColumn(ctx, functionColumn.Arguments[0]);
+                var (valueExpression, _) = SplitAlias(value);
+
+                var precision = CompileColumn(ctx, functionColumn.Arguments[1]);
+                var (precisionExpression, _) = SplitAlias(precision);
+
+                var sql = $"ROUND(({valueExpression})::numeric, {precisionExpression})";
+
+                if (!string.IsNullOrEmpty(functionColumn.Alias))
+                    sql += $" {ColumnAsKeyword}{WrapValue(functionColumn.Alias)}";
+
+                return sql;
+            }
+
+            return base.CompileColumn(ctx, column);
+        }
 
         protected override string CompileBasicStringCondition(SqlResult ctx, BasicStringCondition x)
         {

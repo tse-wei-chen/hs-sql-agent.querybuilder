@@ -297,6 +297,48 @@ namespace SqlKata.Tests
         }
 
         [Fact]
+        public void PostgresRoundWithPrecision_CastsValueArgumentToNumeric()
+        {
+            var query = new Query("order_details")
+                .Select(new FunctionColumn
+                {
+                    Name = "ROUND",
+                    Arguments =
+                    [
+                        new FunctionColumn
+                        {
+                            Name = "SUM",
+                            Arguments =
+                            [
+                                new ArithmeticColumn
+                                {
+                                    Left = new ArithmeticColumn
+                                    {
+                                        Left = new Column { Name = "od.unit_price" },
+                                        Operator = "*",
+                                        Right = new Column { Name = "od.quantity" }
+                                    },
+                                    Operator = "*",
+                                    Right = new ArithmeticColumn
+                                    {
+                                        Left = new NumberColumn { Value = 1 },
+                                        Operator = "-",
+                                        Right = new Column { Name = "od.discount" }
+                                    }
+                                }
+                            ]
+                        },
+                        new NumberColumn { Value = 2 }
+                    ],
+                    Alias = "total_sales"
+                });
+
+            var result = Compilers.CompileFor(EngineCodes.PostgreSql, query);
+
+            Assert.Equal("SELECT ROUND((SUM(((\"od\".\"unit_price\" * \"od\".\"quantity\") * (1 - \"od\".\"discount\"))))::numeric, 2) AS \"total_sales\" FROM \"order_details\"", result.ToString());
+        }
+
+        [Fact]
         public void GroupByFunctionColumn_UsesBindingsAndWrappedIdentifiers()
         {
             var query = new Query("orders")
